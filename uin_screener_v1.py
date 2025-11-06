@@ -60,13 +60,36 @@ st.sidebar.title("📊 UIN Screener Controls")
 period = st.sidebar.selectbox("Select period:", ["Daily", "Weekly", "Monthly"])
 index_choice = st.sidebar.selectbox("Filter by Index:", ["ALLSHR (All Stocks)", "KSE100", "KMIALLSHR"])
 threshold_uin = st.sidebar.slider("Minimum UIN % Volume", 0, 100, 60)
-threshold_volume = st.sidebar.number_input("Minimum Trade Volume", min_value=0, value=50000, step=1000)
+
+# Trade volume filter in millions
+st.sidebar.markdown("**Minimum Trade Volume (Millions)**")
+min_trade_vol_m = st.sidebar.number_input(
+    label="",
+    min_value=0.0, value=50.0, step=0.5,  # default 50M
+    help="Rows with Trade Volume below this (in millions) will be filtered out."
+)
+min_trade_vol_abs = int(min_trade_vol_m * 1_000_000)
+
 symbol_search = st.sidebar.text_input("Filter by symbol (optional):").upper()
+
 
 # === Load Data ===
 df = load_data(period)
 if df.empty:
     st.stop()
+
+# --- Date range filter (applies before other filters) ---
+min_date = df["Date"].min().date()
+max_date = df["Date"].max().date()
+
+date_start, date_end = st.sidebar.date_input(
+    "Date range",
+    (min_date, max_date),
+    min_value=min_date,
+    max_value=max_date,
+)
+
+df = df[(df["Date"].dt.date >= date_start) & (df["Date"].dt.date <= date_end)].copy()
 
 if "UIN % Volume" not in df.columns:
     if "UIN Percentage Volume" in df.columns:
@@ -84,21 +107,33 @@ elif index_choice == "KMIALLSHR":
     df = df[df["Symbol"].isin(KMIALLSHR_STOCKS)]
 
 # === Apply Threshold Filters ===
-filtered = df[(df["UIN % Volume"] >= threshold_uin) & (df["Trade Volume"] >= threshold_volume)]
+filtered = df[
+    (df["UIN % Volume"] >= threshold_uin) &
+    (df["Trade Volume"] >= min_trade_vol_abs)
+].copy()
+
 if symbol_search:
-    filtered = filtered[filtered["Symbol"].str.contains(symbol_search, case=False)]
+    filtered = filtered[filtered["Symbol"].str.contains(symbol_search, case=False)].copy()
+
+# Display trade volume in millions
+filtered["Trade Volume (M)"] = (filtered["Trade Volume"] / 1_000_000).round(2)
+
 
 # === Main Display ===
 st.title("📈 PSX UIN Participation Screener")
-st.caption(f"{period} data | Index: {index_choice} | UIN ≥ {threshold_uin}% | Trade Volume ≥ {threshold_volume:,}")
+st.caption(
+    f"{period} data | Index: {index_choice} | UIN ≥ {threshold_uin}% | "
+    f"Trade Volume ≥ {min_trade_vol_m:.2f}M | Dates: {date_start} → {date_end}"
+)
 
-# === Filtered Table ===
+# === Filtered Table (sorted newest → oldest) ===
 st.dataframe(
-    filtered.sort_values(["UIN % Volume", "Trade Volume"], ascending=[False, False])[
-        ["Symbol", "Date", "UIN % Volume", "Trade Volume"]
+    filtered.sort_values("Date", ascending=False)[
+        ["Symbol", "Date", "UIN % Volume", "Trade Volume (M)"]
     ],
     hide_index=True
 )
+
 
 # === 1️⃣ Automatic Top 5 Chart ===
 if not filtered.empty:
@@ -145,8 +180,8 @@ if selected_symbols:
                        yaxis="y1")
         )
         fig.add_trace(
-            go.Bar(x=d["Date"], y=d["Trade Volume"],
-                   name=f"{s} Trade Vol", yaxis="y2", opacity=0.3)
+            go.Bar(x=d["Date"], y=(d["Trade Volume"] / 1_000_000],
+                   name=f"{s} Trade Vol", yaxis="y2", opacity=0.5)
         )
 
     fig.update_layout(
