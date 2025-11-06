@@ -180,7 +180,7 @@ if selected_symbols:
                        yaxis="y1")
         )
         fig.add_trace(
-            go.Bar(x=d["Date"], y=(d["Trade Volume"] / 1_000_000],
+            go.Bar(x=d["Date"], y=d["Trade Volume"] / 1_000_000,
                    name=f"{s} Trade Vol", yaxis="y2", opacity=0.5)
         )
 
