@@ -21,7 +21,7 @@ def load_data(period):
         return pd.DataFrame()
     df = pd.read_csv(path, thousands=",", encoding_errors="ignore")
     df.columns = df.columns.str.strip().str.replace('\u00A0', ' ', regex=True)
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.date
     return df
 
 # === Index Constituents ===
