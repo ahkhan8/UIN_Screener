@@ -22,6 +22,7 @@ def load_data(period):
     df = pd.read_csv(path, thousands=",", encoding_errors="ignore")
     df.columns = df.columns.str.strip().str.replace('\u00A0', ' ', regex=True)
     df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.date
+    df = df.dropna(subset=["Date"])
     return df
 
 # === Index Constituents ===
@@ -78,18 +79,31 @@ df = load_data(period)
 if df.empty:
     st.stop()
 
+from datetime import timedelta  # add this near your imports if not already there
+
 # --- Date range filter (applies before other filters) ---
-min_date = df["Date"].min().date()
-max_date = df["Date"].max().date()
+min_date = df["Date"].min()  # already a datetime.date
+max_date = df["Date"].max()  # already a datetime.date
+
+# default: last 30 days or entire range if fewer than 30 days
+default_start = max(min_date, max_date - timedelta(days=30)) if min_date and max_date else None
+default_range = (default_start, max_date) if default_start else None
 
 date_start, date_end = st.sidebar.date_input(
     "Date range",
-    (min_date, max_date),
+    value=default_range,
     min_value=min_date,
     max_value=max_date,
 )
 
-df = df[(df["Date"].dt.date >= date_start) & (df["Date"].dt.date <= date_end)].copy()
+# Handle Streamlit returning single date instead of a tuple
+if isinstance(date_start, tuple):
+    date_start, date_end = date_start
+
+# Apply filter
+if date_start and date_end:
+    df = df[(df["Date"] >= date_start) & (df["Date"] <= date_end)].copy()
+
 
 if "UIN % Volume" not in df.columns:
     if "UIN Percentage Volume" in df.columns:
