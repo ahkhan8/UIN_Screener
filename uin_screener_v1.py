@@ -4,8 +4,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 import os
 
-# === File paths ===
-data_folder = "/Users/Khan/Downloads/Settlement_Output"
+data_folder = os.path.join(os.getcwd(), "Settlement_Output")
+
 
 # === Load data ===
 @st.cache_data
