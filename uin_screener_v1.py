@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import os
-from .sectors import SYMBOL_TO_SECTOR
+from sectors import SYMBOL_TO_SECTOR
 
 
 data_folder = os.path.join(os.getcwd(), "Settlement_Output")
