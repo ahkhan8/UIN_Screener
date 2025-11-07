@@ -3,7 +3,13 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import os
-from sectors import SYMBOL_TO_SECTOR
+# --- Sector mapping (safe import) ---
+try:
+    from sectors import SYMBOL_TO_SECTOR as _SYMBOL_TO_SECTOR
+except Exception as e:
+    _SYMBOL_TO_SECTOR = {}
+    import streamlit as st  # safe if we're above; already imported anyway
+    st.warning(f"Sector mapping not loaded ({e}). Using 'Unclassified' as fallback.")
 
 
 data_folder = os.path.join(os.getcwd(), "Settlement_Output")
@@ -28,7 +34,8 @@ def load_data(period):
     return df
 
 # Add Sector column from mapping
-df["Sector"] = df["Symbol"].map(SYMBOL_TO_SECTOR).fillna("Unclassified")
+df["Sector"] = df["Symbol"].map(_SYMBOL_TO_SECTOR).fillna("Unclassified")
+
 
 # === Index Constituents ===
 KSE100_STOCKS = [
