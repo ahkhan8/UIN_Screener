@@ -3,6 +3,8 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import os
+from sectors import SECTOR_MAP, SYMBOL_TO_SECTOR
+
 
 data_folder = os.path.join(os.getcwd(), "Settlement_Output")
 
@@ -24,6 +26,9 @@ def load_data(period):
     df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.date
     df = df.dropna(subset=["Date"])
     return df
+
+# Add Sector column from mapping
+df["Sector"] = df["Symbol"].map(SYMBOL_TO_SECTOR).fillna("Unclassified")
 
 # === Index Constituents ===
 KSE100_STOCKS = [
@@ -73,6 +78,13 @@ min_trade_vol_abs = int(min_trade_vol_m * 1_000_000)
 
 symbol_search = st.sidebar.text_input("Filter by symbol (optional):").upper()
 
+# --- Sector filter (optional) ---
+sector_choice = st.sidebar.selectbox(
+    "Filter by sector (optional):",
+    ["All sectors"] + sorted(SECTOR_MAP.keys())
+)
+if sector_choice != "All sectors":
+    df = df[df["Sector"] == sector_choice]
 
 # === Load Data ===
 df = load_data(period)
@@ -222,3 +234,31 @@ fig2 = px.imshow(
 )
 fig2.update_layout(height=800, xaxis_title="Date", yaxis_title="Symbol")
 st.plotly_chart(fig2, use_container_width=True)
+
+
+st.subheader("📊 Sector summary (in current filters)")
+
+if df.empty:
+    st.info("No rows after filters.")
+else:
+    sec = (
+        df.groupby("Sector", as_index=False)
+          .agg({"UIN % Volume":"mean", "Trade Volume":"sum"})
+    )
+    sec["Trade Volume (M)"] = sec["Trade Volume"] / 1_000_000
+    sec = sec.sort_values(["Trade Volume"], ascending=False)
+
+    st.dataframe(
+        sec[["Sector","UIN % Volume","Trade Volume (M)"]],
+        hide_index=True
+    )
+
+    import plotly.express as px
+    fig = px.bar(
+        sec,
+        x="Sector", y="Trade Volume (M)",
+        hover_data={"UIN % Volume":":.2f"},
+        title="Total Trade Volume by Sector (M)",
+    )
+    fig.update_layout(xaxis_tickangle=-35)
+    st.plotly_chart(fig, use_container_width=True)
