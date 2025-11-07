@@ -3,13 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import os
-
-# NEW: sector mapping
-try:
-    from sectors import SYMBOL_TO_SECTOR  # dict: {"ABOT": "Pharmaceuticals", ...}
-except Exception as e:
-    st.warning(f"Could not import sector mapping: {e}")
-    SYMBOL_TO_SECTOR = {}
+from .sectors import SYMBOL_TO_SECTOR
 
 
 data_folder = os.path.join(os.getcwd(), "Settlement_Output")
