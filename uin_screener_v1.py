@@ -75,30 +75,38 @@ min_trade_vol_abs = int(min_trade_vol_m * 1_000_000)
 
 symbol_search = st.sidebar.text_input("Filter by symbol (optional):").upper()
 
-from datetime import timedelta  # add this near your imports if not already there
+# --- Normalize Date column and guard against empties ---
+df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.date
+df = df.dropna(subset=["Date"])
+if df.empty:
+    st.warning("No rows with a valid Date.")
+    st.stop()
+
+from datetime import timedelta  # keep this import
 
 # --- Date range filter (applies before other filters) ---
-min_date = df["Date"].min()  # already a datetime.date
-max_date = df["Date"].max()  # already a datetime.date
+min_date = df["Date"].min()          # datetime.date
+max_date = df["Date"].max()          # datetime.date
 
-# default: last 30 days or entire range if fewer than 30 days
-default_start = max(min_date, max_date - timedelta(days=30)) if min_date and max_date else None
-default_range = (default_start, max_date) if default_start else None
+# default: last 30 days or full range if <30 days
+default_start = max(min_date, max_date - timedelta(days=30))
+default_range = (default_start, max_date)
 
-date_start, date_end = st.sidebar.date_input(
+returned = st.sidebar.date_input(
     "Date range",
     value=default_range,
     min_value=min_date,
     max_value=max_date,
 )
 
-# Handle Streamlit returning single date instead of a tuple
-if isinstance(date_start, tuple):
-    date_start, date_end = date_start
+# Handle single-date vs. range return
+if isinstance(returned, tuple):
+    date_start, date_end = returned
+else:
+    date_start = date_end = returned
 
 # Apply filter
-if date_start and date_end:
-    df = df[(df["Date"] >= date_start) & (df["Date"] <= date_end)].copy()
+df = df[(df["Date"] >= date_start) & (df["Date"] <= date_end)].copy()
 
 
 if "UIN % Volume" not in df.columns:
