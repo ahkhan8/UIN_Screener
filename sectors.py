@@ -109,3 +109,4 @@ SECTOR_MAP = {
 }
 # Convenience: symbol → sector
 SYMBOL_TO_SECTOR = {sym: sector for sector, syms in SECTOR_MAP.items() for sym in syms}
+
