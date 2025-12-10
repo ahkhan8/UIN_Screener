@@ -117,38 +117,57 @@ def load_data(period: str) -> pd.DataFrame:
     df = _standardize_schema(df)
     return df
 
-# NEW: helper to build KMIALLSHR ≥ 70% summary across periods
-def build_kmiallshr_70_summary(date_start, date_end, uin_threshold=70.0) -> pd.DataFrame:
-    period_syms = {}
+# NEW: helper to build KMIALLSHR ≥ 70% summary based on last 2 periods
+def build_kmiallshr_70_summary(uin_threshold: float = 70.0) -> pd.DataFrame:
+    """
+    For each KMIALLSHR symbol and each period (Daily/Weekly/Monthly),
+    mark it if the last TWO observations in that dataset have
+    UIN % Volume >= uin_threshold.
+    """
+    period_syms: dict[str, set] = {}
+
     for per in ["Daily", "Weekly", "Monthly"]:
         dfp = load_data(per)
         if dfp.empty or "UIN % Volume" not in dfp.columns:
+            period_syms[per] = set()
             continue
-        dfp = dfp[
-            (dfp["Date"] >= date_start) &
-            (dfp["Date"] <= date_end) &
-            (dfp["Symbol"].isin(KMIALLSHR_STOCKS))
-        ].copy()
+
+        # only KMIALLSHR symbols, drop NaNs
+        dfp = dfp[dfp["Symbol"].isin(KMIALLSHR_STOCKS)].copy()
+        dfp = dfp.dropna(subset=["UIN % Volume"])
         if dfp.empty:
             period_syms[per] = set()
             continue
-        period_syms[per] = set(
-            dfp.loc[dfp["UIN % Volume"] >= uin_threshold, "Symbol"].unique()
-        )
 
-    if not period_syms:
+        ok_syms = set()
+
+        # check last 2 observations for each symbol
+        for sym, g in dfp.groupby("Symbol"):
+            g = g.sort_values("Date")
+            if len(g) < 2:
+                continue  # need at least 2 points
+            last2 = g.tail(2)
+            if (last2["UIN % Volume"] >= uin_threshold).all():
+                ok_syms.add(sym)
+
+        period_syms[per] = ok_syms
+
+    # union of all symbols that satisfy any timeframe
+    all_symbols = sorted(set().union(*period_syms.values()))
+    if not all_symbols:
         return pd.DataFrame()
 
-    all_symbols = sorted(set().union(*period_syms.values()))
     rows = []
     for sym in all_symbols:
         rows.append({
             "Symbol": sym,
-            "Daily ≥ 70%": "✅" if sym in period_syms.get("Daily", set()) else "",
-            "Weekly ≥ 70%": "✅" if sym in period_syms.get("Weekly", set()) else "",
-            "Monthly ≥ 70%": "✔️" if sym in period_syms.get("Monthly", set()) else "",
+            "Daily ≥ 70% (last 2 days)": "✅" if sym in period_syms.get("Daily", set()) else "",
+            "Weekly ≥ 70% (last 2 weeks)": "✅" if sym in period_syms.get("Weekly", set()) else "",
+            "Monthly ≥ 70% (last 2 months)": "✅" if sym in period_syms.get("Monthly", set()) else "",
         })
+
     return pd.DataFrame(rows)
+
 
 # ─── Sidebar controls ───────────────────────────────────────────────────────────
 st.sidebar.title("📊 UIN Screener Controls")
