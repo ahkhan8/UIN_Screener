@@ -168,6 +168,61 @@ def build_kmiallshr_70_summary(uin_threshold: float = 70.0) -> pd.DataFrame:
 
     return pd.DataFrame(rows)
 
+def compute_kmiallshr_signal_lists():
+    """
+    Returns three lists of KMIALLSHR symbols:
+
+    - daily_list: UIN % Volume ≥ 80 for the last 3 *daily* observations
+    - weekly_list: UIN % Volume ≥ 65 for the last *weekly* observation
+    - monthly_list: UIN % Volume ≥ 60 for the last *monthly* observation
+    """
+    daily_list = []
+    weekly_list = []
+    monthly_list = []
+
+    # ----- Daily: ≥ 80 for last 3 observations -----
+    df_day = load_data("Daily")
+    if not df_day.empty and "UIN % Volume" in df_day.columns:
+        df_day = df_day[df_day["Symbol"].isin(KMIALLSHR_STOCKS)].copy()
+        df_day = df_day.dropna(subset=["UIN % Volume"])
+        for sym, g in df_day.groupby("Symbol"):
+            g = g.sort_values("Date")
+            if len(g) < 3:
+                continue
+            last3 = g.tail(3)
+            if (last3["UIN % Volume"] >= 80).all():
+                daily_list.append(sym)
+        daily_list = sorted(daily_list)
+
+    # ----- Weekly: ≥ 65 for last week -----
+    df_week = load_data("Weekly")
+    if not df_week.empty and "UIN % Volume" in df_week.columns:
+        df_week = df_week[df_week["Symbol"].isin(KMIALLSHR_STOCKS)].copy()
+        df_week = df_week.dropna(subset=["UIN % Volume"])
+        if not df_week.empty:
+            last_week_date = df_week["Date"].max()
+            last_week = df_week[df_week["Date"] == last_week_date]
+            weekly_list = sorted(
+                last_week.loc[last_week["UIN % Volume"] >= 65, "Symbol"]
+                .unique()
+                .tolist()
+            )
+
+    # ----- Monthly: ≥ 60 for last month -----
+    df_month = load_data("Monthly")
+    if not df_month.empty and "UIN % Volume" in df_month.columns:
+        df_month = df_month[df_month["Symbol"].isin(KMIALLSHR_STOCKS)].copy()
+        df_month = df_month.dropna(subset=["UIN % Volume"])
+        if not df_month.empty:
+            last_month_date = df_month["Date"].max()
+            last_month = df_month[df_month["Date"] == last_month_date]
+            monthly_list = sorted(
+                last_month.loc[last_month["UIN % Volume"] >= 60, "Symbol"]
+                .unique()
+                .tolist()
+            )
+
+    return daily_list, weekly_list, monthly_list
 
 # ─── Sidebar controls ───────────────────────────────────────────────────────────
 st.sidebar.title("📊 UIN Screener Controls")
@@ -246,21 +301,28 @@ st.caption(
     f"Trade Volume ≥ {min_trade_vol_m:.2f}M | Dates: {date_start} → {date_end}"
 )
 
-# ─── NEW: KMIALLSHR ≥ 70% summary (Daily/Weekly/Monthly) ───────────────────────
-st.subheader("🧾 KMIALLSHR symbols with UIN ≥ 70% (last 2 days / weeks / months)")
-summary_df = build_kmiallshr_70_summary(uin_threshold=70.0)
-if summary_df.empty:
-    st.info("No KMIALLSHR symbols with UIN ≥ 70% in the selected date range across any period.")
+# ─── KMIALLSHR high-UIN shortlists (no tables, just lists) ─────────────────────
+st.subheader("🎯 KMIALLSHR High-UIN Shortlists")
+
+daily_list, weekly_list, monthly_list = compute_kmiallshr_signal_lists()
+
+st.markdown("**Daily (≥ 80% for last 3 daily observations)**")
+if daily_list:
+    st.write(", ".join(daily_list))
 else:
-    st.dataframe(summary_df.sort_values("Symbol"), hide_index=True)
-   
-# ─── Filtered table (newest → oldest) ───────────────────────────────────────────
-st.dataframe(
-    filtered.sort_values("Date", ascending=False)[
-        ["Symbol", "Date", "UIN % Volume", "Trade Volume (M)"]
-    ],
-    hide_index=True,
-)
+    st.caption("No KMIALLSHR symbols meet this condition.")
+
+st.markdown("**Weekly (≥ 65% in last weekly observation)**")
+if weekly_list:
+    st.write(", ".join(weekly_list))
+else:
+    st.caption("No KMIALLSHR symbols meet this condition.")
+
+st.markdown("**Monthly (≥ 60% in last monthly observation)**")
+if monthly_list:
+    st.write(", ".join(monthly_list))
+else:
+    st.caption("No KMIALLSHR symbols meet this condition.")
 
 # ─── 1) Automatic Top 5 chart ──────────────────────────────────────────────────
 if not filtered.empty:
