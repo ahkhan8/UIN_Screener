@@ -117,6 +117,39 @@ def load_data(period: str) -> pd.DataFrame:
     df = _standardize_schema(df)
     return df
 
+# NEW: helper to build KMIALLSHR ≥ 70% summary across periods
+def build_kmiallshr_70_summary(date_start, date_end, uin_threshold=70.0) -> pd.DataFrame:
+    period_syms = {}
+    for per in ["Daily", "Weekly", "Monthly"]:
+        dfp = load_data(per)
+        if dfp.empty or "UIN % Volume" not in dfp.columns:
+            continue
+        dfp = dfp[
+            (dfp["Date"] >= date_start) &
+            (dfp["Date"] <= date_end) &
+            (dfp["Symbol"].isin(KMIALLSHR_STOCKS))
+        ].copy()
+        if dfp.empty:
+            period_syms[per] = set()
+            continue
+        period_syms[per] = set(
+            dfp.loc[dfp["UIN % Volume"] >= uin_threshold, "Symbol"].unique()
+        )
+
+    if not period_syms:
+        return pd.DataFrame()
+
+    all_symbols = sorted(set().union(*period_syms.values()))
+    rows = []
+    for sym in all_symbols:
+        rows.append({
+            "Symbol": sym,
+            "Daily ≥ 70%": "✅" if sym in period_syms.get("Daily", set()) else "",
+            "Weekly ≥ 70%": "✅" if sym in period_syms.get("Weekly", set()) else "",
+            "Monthly ≥ 70%": "✔️" if sym in period_syms.get("Monthly", set()) else "",
+        })
+    return pd.DataFrame(rows)
+
 # ─── Sidebar controls ───────────────────────────────────────────────────────────
 st.sidebar.title("📊 UIN Screener Controls")
 period = st.sidebar.selectbox("Select period:", ["Daily", "Weekly", "Monthly"])
@@ -132,6 +165,13 @@ min_trade_vol_m = st.sidebar.number_input(
 min_trade_vol_abs = int(min_trade_vol_m * 1_000_000)
 
 symbol_search = st.sidebar.text_input("Filter by symbol (optional):").strip().upper()
+
+# NEW: divergence threshold slider
+div_threshold = st.sidebar.slider(
+    "Divergence alert Δ UIN (percentage points)",
+    min_value=0, max_value=100, value=15,
+    help="Absolute change between last two observations for a symbol to flag in divergence alerts."
+)
 
 # ─── Load dataframe NOW (prevents NameError) ────────────────────────────────────
 df = load_data(period)
@@ -194,6 +234,50 @@ st.caption(
     f"Trade Volume ≥ {min_trade_vol_m:.2f}M | Dates: {date_start} → {date_end}"
 )
 
+# ─── NEW: KMIALLSHR ≥ 70% summary (Daily/Weekly/Monthly) ───────────────────────
+st.subheader("🧾 KMIALLSHR symbols with UIN ≥ 70% (Daily / Weekly / Monthly)")
+summary_df = build_kmiallshr_70_summary(date_start, date_end, uin_threshold=70.0)
+if summary_df.empty:
+    st.info("No KMIALLSHR symbols with UIN ≥ 70% in the selected date range across any period.")
+else:
+    st.dataframe(summary_df.sort_values("Symbol"), hide_index=True)
+
+# ─── NEW: Divergence alerts table ──────────────────────────────────────────────
+st.subheader("⚠️ UIN Divergence Alerts (current period)")
+# For divergence we use df_idx: already filtered by date + index, but not by UIN/volume.
+df_idx = df_idx.sort_values(["Symbol", "Date"]).copy()
+
+# only symbols with at least 2 data points
+g = df_idx.groupby("Symbol", as_index=False)
+last_uin = g["UIN % Volume"].nth(-1)
+prev_uin = g["UIN % Volume"].nth(-2)
+
+# dates for last and previous
+last_dates = g["Date"].nth(-1)
+prev_dates = g["Date"].nth(-2)
+
+# align on symbols present in both
+alerts = pd.DataFrame({
+    "Symbol": last_uin["Symbol"],
+    "Prev Date": prev_dates["Date"].values,
+    "Prev UIN %": prev_uin["UIN % Volume"].values,
+    "Last Date": last_dates["Date"].values,
+    "Last UIN %": last_uin["UIN % Volume"].values,
+})
+alerts["Δ UIN (pp)"] = (alerts["Last UIN %"] - alerts["Prev UIN %"]).round(2)
+alerts["|Δ UIN| (pp)"] = alerts["Δ UIN (pp)"].abs()
+
+alerts = alerts[alerts["|Δ UIN| (pp)"] >= div_threshold].copy()
+alerts = alerts.sort_values("|Δ UIN| (pp)", ascending=False)
+
+if alerts.empty:
+    st.info(f"No symbols have |Δ UIN| ≥ {div_threshold} percentage points between the last two observations.")
+else:
+    st.dataframe(
+        alerts[["Symbol", "Prev Date", "Prev UIN %", "Last Date", "Last UIN %", "Δ UIN (pp)"]],
+        hide_index=True
+    )
+    
 # ─── Filtered table (newest → oldest) ───────────────────────────────────────────
 st.dataframe(
     filtered.sort_values("Date", ascending=False)[
