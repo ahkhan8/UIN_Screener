@@ -301,28 +301,102 @@ st.caption(
     f"Trade Volume ≥ {min_trade_vol_m:.2f}M | Dates: {date_start} → {date_end}"
 )
 
-# ─── KMIALLSHR high-UIN shortlists (no tables, just lists) ─────────────────────
+# ─── KMIALLSHR high-UIN shortlists (interactive) ───────────────────────────────
 st.subheader("🎯 KMIALLSHR High-UIN Shortlists")
 
 daily_list, weekly_list, monthly_list = compute_kmiallshr_signal_lists()
 
-st.markdown("**Daily (≥ 80% for last 3 daily observations)**")
-if daily_list:
-    st.write(", ".join(daily_list))
-else:
-    st.caption("No KMIALLSHR symbols meet this condition.")
+# Load full daily data once for detail view
+df_daily_full = load_data("Daily")
+df_daily_full = df_daily_full[
+    df_daily_full["Symbol"].isin(KMIALLSHR_STOCKS)
+].copy()
+df_daily_full = df_daily_full.sort_values("Date")
 
-st.markdown("**Weekly (≥ 65% in last weekly observation)**")
-if weekly_list:
-    st.write(", ".join(weekly_list))
-else:
-    st.caption("No KMIALLSHR symbols meet this condition.")
+tabs = st.tabs([
+    "Daily (≥ 80%, last 3 daily obs)",
+    "Weekly (≥ 65%, last week)",
+    "Monthly (≥ 60%, last month)",
+])
 
-st.markdown("**Monthly (≥ 60% in last monthly observation)**")
-if monthly_list:
-    st.write(", ".join(monthly_list))
-else:
-    st.caption("No KMIALLSHR symbols meet this condition.")
+# ---- Daily tab ----
+with tabs[0]:
+    st.caption("KMIALLSHR stocks where UIN % Volume ≥ 80 for each of the last 3 daily observations.")
+    if daily_list:
+        st.dataframe(
+            pd.DataFrame({"Symbol": daily_list}),
+            hide_index=True,
+            use_container_width=True,
+            height=200,  # makes it scrollable
+        )
+        daily_symbol = st.selectbox(
+            "Click / select a ticker to see last 3 daily rows:",
+            daily_list,
+            key="daily_symbol_select",
+        )
+        if daily_symbol:
+            df_sym = df_daily_full[df_daily_full["Symbol"] == daily_symbol].tail(3)
+            st.markdown(f"**Last 3 daily rows for `{daily_symbol}`**")
+            st.dataframe(
+                df_sym[["Date", "Symbol", "UIN % Volume", "Trade Volume"]],
+                hide_index=True,
+                use_container_width=True,
+            )
+    else:
+        st.caption("No KMIALLSHR symbols meet this daily condition.")
+
+# ---- Weekly tab ----
+with tabs[1]:
+    st.caption("KMIALLSHR stocks where UIN % Volume ≥ 65 in the last weekly observation.")
+    if weekly_list:
+        st.dataframe(
+            pd.DataFrame({"Symbol": weekly_list}),
+            hide_index=True,
+            use_container_width=True,
+            height=200,
+        )
+        weekly_symbol = st.selectbox(
+            "Click / select a ticker to see last 3 daily rows:",
+            weekly_list,
+            key="weekly_symbol_select",
+        )
+        if weekly_symbol:
+            df_sym = df_daily_full[df_daily_full["Symbol"] == weekly_symbol].tail(3)
+            st.markdown(f"**Last 3 daily rows for `{weekly_symbol}`**")
+            st.dataframe(
+                df_sym[["Date", "Symbol", "UIN % Volume", "Trade Volume"]],
+                hide_index=True,
+                use_container_width=True,
+            )
+    else:
+        st.caption("No KMIALLSHR symbols meet this weekly condition.")
+
+# ---- Monthly tab ----
+with tabs[2]:
+    st.caption("KMIALLSHR stocks where UIN % Volume ≥ 60 in the last monthly observation.")
+    if monthly_list:
+        st.dataframe(
+            pd.DataFrame({"Symbol": monthly_list}),
+            hide_index=True,
+            use_container_width=True,
+            height=200,
+        )
+        monthly_symbol = st.selectbox(
+            "Click / select a ticker to see last 3 daily rows:",
+            monthly_list,
+            key="monthly_symbol_select",
+        )
+        if monthly_symbol:
+            df_sym = df_daily_full[df_daily_full["Symbol"] == monthly_symbol].tail(3)
+            st.markdown(f"**Last 3 daily rows for `{monthly_symbol}`**")
+            st.dataframe(
+                df_sym[["Date", "Symbol", "UIN % Volume", "Trade Volume"]],
+                hide_index=True,
+                use_container_width=True,
+            )
+    else:
+        st.caption("No KMIALLSHR symbols meet this monthly condition.")
+
 
 # ─── 1) Automatic Top 5 chart ──────────────────────────────────────────────────
 if not filtered.empty:
