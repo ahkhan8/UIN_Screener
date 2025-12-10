@@ -242,21 +242,19 @@ if summary_df.empty:
 else:
     st.dataframe(summary_df.sort_values("Symbol"), hide_index=True)
 
-# ─── NEW: Divergence alerts table ──────────────────────────────────────────────
+# NEW: Divergence Alerts
 st.subheader("⚠️ UIN Divergence Alerts (current period)")
-# For divergence we use df_idx: already filtered by date + index, but not by UIN/volume.
-df_idx = df_idx.sort_values(["Symbol", "Date"]).copy()
+
+# start from the already filtered-by-date-and-index dataframe `df`
+df_idx = df.sort_values(["Symbol", "Date"]).copy()
 
 # only symbols with at least 2 data points
 g = df_idx.groupby("Symbol", as_index=False)
 last_uin = g["UIN % Volume"].nth(-1)
 prev_uin = g["UIN % Volume"].nth(-2)
-
-# dates for last and previous
 last_dates = g["Date"].nth(-1)
 prev_dates = g["Date"].nth(-2)
 
-# align on symbols present in both
 alerts = pd.DataFrame({
     "Symbol": last_uin["Symbol"],
     "Prev Date": prev_dates["Date"].values,
@@ -266,9 +264,7 @@ alerts = pd.DataFrame({
 })
 alerts["Δ UIN (pp)"] = (alerts["Last UIN %"] - alerts["Prev UIN %"]).round(2)
 alerts["|Δ UIN| (pp)"] = alerts["Δ UIN (pp)"].abs()
-
-alerts = alerts[alerts["|Δ UIN| (pp)"] >= div_threshold].copy()
-alerts = alerts.sort_values("|Δ UIN| (pp)", ascending=False)
+alerts = alerts[alerts["|Δ UIN| (pp)"] >= div_threshold].sort_values("|Δ UIN| (pp)", ascending=False)
 
 if alerts.empty:
     st.info(f"No symbols have |Δ UIN| ≥ {div_threshold} percentage points between the last two observations.")
@@ -277,6 +273,7 @@ else:
         alerts[["Symbol", "Prev Date", "Prev UIN %", "Last Date", "Last UIN %", "Δ UIN (pp)"]],
         hide_index=True
     )
+
     
 # ─── Filtered table (newest → oldest) ───────────────────────────────────────────
 st.dataframe(
