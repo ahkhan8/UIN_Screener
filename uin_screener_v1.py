@@ -166,13 +166,6 @@ min_trade_vol_abs = int(min_trade_vol_m * 1_000_000)
 
 symbol_search = st.sidebar.text_input("Filter by symbol (optional):").strip().upper()
 
-# NEW: divergence threshold slider
-div_threshold = st.sidebar.slider(
-    "Divergence alert Δ UIN (percentage points)",
-    min_value=0, max_value=100, value=15,
-    help="Absolute change between last two observations for a symbol to flag in divergence alerts."
-)
-
 # ─── Load dataframe NOW (prevents NameError) ────────────────────────────────────
 df = load_data(period)
 if df.empty:
@@ -241,54 +234,7 @@ if summary_df.empty:
     st.info("No KMIALLSHR symbols with UIN ≥ 70% in the selected date range across any period.")
 else:
     st.dataframe(summary_df.sort_values("Symbol"), hide_index=True)
-
-# NEW: Divergence Alerts
-st.subheader("⚠️ UIN Divergence Alerts (current period)")
-
-# start from the already filtered-by-date-and-index dataframe `df`
-df_idx = df.sort_values(["Symbol", "Date"]).copy()
-
-# group by symbol
-g = df_idx.groupby("Symbol")
-
-# last and previous UIN + dates
-last_uin = g["UIN % Volume"].nth(-1)
-prev_uin = g["UIN % Volume"].nth(-2)
-last_dates = g["Date"].nth(-1)
-prev_dates = g["Date"].nth(-2)
-
-# build table from the index (which is Symbol)
-alerts = pd.DataFrame({
-    "Symbol": last_uin.index,
-    "Prev Date": prev_dates.values,
-    "Prev UIN %": prev_uin.values,
-    "Last Date": last_dates.values,
-    "Last UIN %": last_uin.values,
-})
-
-# drop symbols that don't actually have 2 points
-alerts = alerts.dropna(subset=["Prev UIN %", "Last UIN %"]).copy()
-
-alerts["Δ UIN (pp)"] = (alerts["Last UIN %"] - alerts["Prev UIN %"]).round(2)
-alerts["|Δ UIN| (pp)"] = alerts["Δ UIN (pp)"].abs()
-
-alerts = alerts[alerts["|Δ UIN| (pp)"] >= div_threshold].sort_values(
-    "|Δ UIN| (pp)", ascending=False
-)
-
-if alerts.empty:
-    st.info(
-        f"No symbols have |Δ UIN| ≥ {div_threshold} percentage points "
-        "between the last two observations."
-    )
-else:
-    st.dataframe(
-        alerts[["Symbol", "Prev Date", "Prev UIN %",
-                "Last Date", "Last UIN %", "Δ UIN (pp)"]],
-        hide_index=True,
-    )
-
-    
+   
 # ─── Filtered table (newest → oldest) ───────────────────────────────────────────
 st.dataframe(
     filtered.sort_values("Date", ascending=False)[
