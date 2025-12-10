@@ -304,18 +304,15 @@ st.caption(
 # ─── KMIALLSHR High-UIN Shortlists ─────────────────────────────────────────────
 st.subheader("🎯 KMIALLSHR High-UIN Shortlists")
 
-# Precomputed lists based on your rules:
-# Daily:  last 3 daily obs all ≥ 80
-# Weekly: last weekly obs ≥ 65
-# Monthly: last monthly obs ≥ 60
+# Lists based on your rules
 daily_list, weekly_list, monthly_list = compute_kmiallshr_signal_lists()
 
-# Load data once for detail views
+# Load data once
 df_daily_full = load_data("Daily")
 df_weekly_full = load_data("Weekly")
 df_monthly_full = load_data("Monthly")
 
-# Keep only KMIALLSHR symbols and sort ascending by date initially
+# Keep only KMIALLSHR symbols & sort by date
 if not df_daily_full.empty:
     df_daily_full = df_daily_full[
         df_daily_full["Symbol"].isin(KMIALLSHR_STOCKS)
@@ -337,48 +334,62 @@ tabs = st.tabs([
     "Monthly (≥ 60%, last month)",
 ])
 
-# ---- Daily tab ----
+# ---- DAILY TAB ----
 with tabs[0]:
     st.caption(
-        f"{len(daily_list)} KMIALLSHR symbols meet the daily condition "
-        "(UIN % Volume ≥ 80 in each of the last 3 daily observations)."
+        f"{len(daily_list)} KMIALLSHR stocks where UIN % Volume ≥ 80 for EACH of the last 3 daily observations."
     )
 
-    if daily_list and not df_daily_full.empty:
-        daily_symbol = st.selectbox(
-            "Select a ticker to see last 3 **daily** rows:",
-            daily_list,
-            key="daily_symbol",
+    if daily_list:
+        # Scrollable table of qualifying symbols
+        st.dataframe(
+            pd.DataFrame({"Symbol": sorted(daily_list)}),
+            hide_index=True,
+            use_container_width=True,
+            height=220
         )
 
-        # NEWEST → OLDEST
+        # Dropdown to select symbol
+        daily_symbol = st.selectbox(
+            "Click / select a ticker to see last 3 **daily** rows:",
+            sorted(daily_list),
+            key="daily_symbol_select"
+        )
+
+        # Last 3 rows (newest → oldest)
         df_sym = (
             df_daily_full[df_daily_full["Symbol"] == daily_symbol]
-            .sort_values("Date", ascending=False)  # newest first
-            .head(3)                               # keep last 3
+            .sort_values("Date", ascending=False)
+            .head(3)
         )
 
         st.markdown(f"### Last 3 daily rows for `{daily_symbol}`")
         st.dataframe(
             df_sym[["Date", "Symbol", "UIN % Volume", "Trade Volume"]],
             hide_index=True,
-            use_container_width=True,
+            use_container_width=True
         )
     else:
-        st.caption("No symbols meet this daily condition or daily data is unavailable.")
+        st.caption("No symbols meet this condition.")
 
-# ---- Weekly tab ----
+# ---- WEEKLY TAB ----
 with tabs[1]:
     st.caption(
-        f"{len(weekly_list)} KMIALLSHR symbols meet the weekly condition "
-        "(UIN % Volume ≥ 65 in the last weekly observation)."
+        f"{len(weekly_list)} KMIALLSHR stocks where UIN % Volume ≥ 65 in the last weekly observation."
     )
 
-    if weekly_list and not df_weekly_full.empty:
+    if weekly_list:
+        st.dataframe(
+            pd.DataFrame({"Symbol": sorted(weekly_list)}),
+            hide_index=True,
+            use_container_width=True,
+            height=220
+        )
+
         weekly_symbol = st.selectbox(
-            "Select a ticker to see last 3 **weekly** rows:",
-            weekly_list,
-            key="weekly_symbol",
+            "Click / select a ticker to see last 3 **weekly** rows:",
+            sorted(weekly_list),
+            key="weekly_symbol_select"
         )
 
         df_sym = (
@@ -391,23 +402,29 @@ with tabs[1]:
         st.dataframe(
             df_sym[["Date", "Symbol", "UIN % Volume", "Trade Volume"]],
             hide_index=True,
-            use_container_width=True,
+            use_container_width=True
         )
     else:
-        st.caption("No symbols meet this weekly condition or weekly data is unavailable.")
+        st.caption("No symbols meet this condition.")
 
-# ---- Monthly tab ----
+# ---- MONTHLY TAB ----
 with tabs[2]:
     st.caption(
-        f"{len(monthly_list)} KMIALLSHR symbols meet the monthly condition "
-        "(UIN % Volume ≥ 60 in the last monthly observation)."
+        f"{len(monthly_list)} KMIALLSHR stocks where UIN % Volume ≥ 60 in the last monthly observation."
     )
 
-    if monthly_list and not df_monthly_full.empty:
+    if monthly_list:
+        st.dataframe(
+            pd.DataFrame({"Symbol": sorted(monthly_list)}),
+            hide_index=True,
+            use_container_width=True,
+            height=220
+        )
+
         monthly_symbol = st.selectbox(
-            "Select a ticker to see last 3 **monthly** rows:",
-            monthly_list,
-            key="monthly_symbol",
+            "Click / select a ticker to see last 3 **monthly** rows:",
+            sorted(monthly_list),
+            key="monthly_symbol_select"
         )
 
         df_sym = (
@@ -420,10 +437,10 @@ with tabs[2]:
         st.dataframe(
             df_sym[["Date", "Symbol", "UIN % Volume", "Trade Volume"]],
             hide_index=True,
-            use_container_width=True,
+            use_container_width=True
         )
     else:
-        st.caption("No symbols meet this monthly condition or monthly data is unavailable.")
+        st.caption("No symbols meet this condition.")
 
 
 # ─── 1) Automatic Top 5 chart ──────────────────────────────────────────────────
