@@ -301,16 +301,20 @@ st.caption(
     f"Trade Volume ≥ {min_trade_vol_m:.2f}M | Dates: {date_start} → {date_end}"
 )
 
+# ─── KMIALLSHR High-UIN Shortlists (Improved detail views) ─────────────────────
 st.subheader("🎯 KMIALLSHR High-UIN Shortlists")
 
 daily_list, weekly_list, monthly_list = compute_kmiallshr_signal_lists()
 
-# Load full daily data once for detail view
+# Load data once
 df_daily_full = load_data("Daily")
-df_daily_full = df_daily_full[
-    df_daily_full["Symbol"].isin(KMIALLSHR_STOCKS)
-].copy()
-df_daily_full = df_daily_full.sort_values("Date")
+df_weekly_full = load_data("Weekly")
+df_monthly_full = load_data("Monthly")
+
+# Keep only KMIALLSHR stocks
+df_daily_full = df_daily_full[df_daily_full["Symbol"].isin(KMIALLSHR_STOCKS)].sort_values("Date")
+df_weekly_full = df_weekly_full[df_weekly_full["Symbol"].isin(KMIALLSHR_STOCKS)].sort_values("Date")
+df_monthly_full = df_monthly_full[df_monthly_full["Symbol"].isin(KMIALLSHR_STOCKS)].sort_values("Date")
 
 tabs = st.tabs([
     "Daily (≥ 80%, last 3 daily obs)",
@@ -320,69 +324,68 @@ tabs = st.tabs([
 
 # ---- Daily tab ----
 with tabs[0]:
-    st.caption(
-        f"{len(daily_list)} KMIALLSHR symbols have UIN % Volume ≥ 80 "
-        "in each of the last 3 daily observations."
-    )
+    st.caption(f"{len(daily_list)} KMIALLSHR symbols meet the daily condition.")
+    
     if daily_list:
         daily_symbol = st.selectbox(
-            "Select a ticker to see last 3 daily rows:",
+            "Select a ticker to see last 3 **daily** rows:",
             daily_list,
-            key="daily_symbol_select",
+            key="daily_symbol"
         )
+
         df_sym = df_daily_full[df_daily_full["Symbol"] == daily_symbol].tail(3)
-        st.markdown(f"**Last 3 daily rows for `{daily_symbol}`**")
+        st.markdown(f"### Last 3 daily rows for `{daily_symbol}`")
         st.dataframe(
             df_sym[["Date", "Symbol", "UIN % Volume", "Trade Volume"]],
             hide_index=True,
-            use_container_width=True,
+            use_container_width=True
         )
     else:
-        st.caption("No KMIALLSHR symbols meet this daily condition.")
+        st.caption("No symbols meet this condition.")
+
 
 # ---- Weekly tab ----
 with tabs[1]:
-    st.caption(
-        f"{len(weekly_list)} KMIALLSHR symbols have UIN % Volume ≥ 65 "
-        "in the last weekly observation."
-    )
+    st.caption(f"{len(weekly_list)} KMIALLSHR symbols meet the weekly condition.")
+    
     if weekly_list:
         weekly_symbol = st.selectbox(
-            "Select a ticker to see last 3 daily rows:",
+            "Select a ticker to see last 3 **weekly** rows:",
             weekly_list,
-            key="weekly_symbol_select",
+            key="weekly_symbol"
         )
-        df_sym = df_daily_full[df_daily_full["Symbol"] == weekly_symbol].tail(3)
-        st.markdown(f"**Last 3 daily rows for `{weekly_symbol}`**")
+
+        df_sym = df_weekly_full[df_weekly_full["Symbol"] == weekly_symbol].tail(3)
+        st.markdown(f"### Last 3 weekly rows for `{weekly_symbol}`")
         st.dataframe(
             df_sym[["Date", "Symbol", "UIN % Volume", "Trade Volume"]],
             hide_index=True,
-            use_container_width=True,
+            use_container_width=True
         )
     else:
-        st.caption("No KMIALLSHR symbols meet this weekly condition.")
+        st.caption("No symbols meet this condition.")
+
 
 # ---- Monthly tab ----
 with tabs[2]:
-    st.caption(
-        f"{len(monthly_list)} KMIALLSHR symbols have UIN % Volume ≥ 60 "
-        "in the last monthly observation."
-    )
+    st.caption(f"{len(monthly_list)} KMIALLSHR symbols meet the monthly condition.")
+    
     if monthly_list:
         monthly_symbol = st.selectbox(
-            "Select a ticker to see last 3 daily rows:",
+            "Select a ticker to see last 3 **monthly** rows:",
             monthly_list,
-            key="monthly_symbol_select",
+            key="monthly_symbol"
         )
-        df_sym = df_daily_full[df_daily_full["Symbol"] == monthly_symbol].tail(3)
-        st.markdown(f"**Last 3 daily rows for `{monthly_symbol}`**")
+
+        df_sym = df_monthly_full[df_monthly_full["Symbol"] == monthly_symbol].tail(3)
+        st.markdown(f"### Last 3 monthly rows for `{monthly_symbol}`")
         st.dataframe(
             df_sym[["Date", "Symbol", "UIN % Volume", "Trade Volume"]],
             hide_index=True,
-            use_container_width=True,
+            use_container_width=True
         )
     else:
-        st.caption("No KMIALLSHR symbols meet this monthly condition.")
+        st.caption("No symbols meet this condition.")
 
 # ─── 1) Automatic Top 5 chart ──────────────────────────────────────────────────
 if not filtered.empty:
