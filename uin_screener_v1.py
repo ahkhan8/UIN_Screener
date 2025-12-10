@@ -315,7 +315,7 @@ df_daily_full = load_data("Daily")
 df_weekly_full = load_data("Weekly")
 df_monthly_full = load_data("Monthly")
 
-# Keep only KMIALLSHR symbols and sort ascending by date
+# Keep only KMIALLSHR symbols and sort ascending by date initially
 if not df_daily_full.empty:
     df_daily_full = df_daily_full[
         df_daily_full["Symbol"].isin(KMIALLSHR_STOCKS)
@@ -351,11 +351,11 @@ with tabs[0]:
             key="daily_symbol",
         )
 
+        # NEWEST → OLDEST
         df_sym = (
             df_daily_full[df_daily_full["Symbol"] == daily_symbol]
             .sort_values("Date", ascending=False)  # newest first
             .head(3)                               # keep last 3
-            .sort_values("Date")                   # show oldest → newest
         )
 
         st.markdown(f"### Last 3 daily rows for `{daily_symbol}`")
@@ -385,7 +385,6 @@ with tabs[1]:
             df_weekly_full[df_weekly_full["Symbol"] == weekly_symbol]
             .sort_values("Date", ascending=False)
             .head(3)
-            .sort_values("Date")
         )
 
         st.markdown(f"### Last 3 weekly rows for `{weekly_symbol}`")
@@ -415,7 +414,6 @@ with tabs[2]:
             df_monthly_full[df_monthly_full["Symbol"] == monthly_symbol]
             .sort_values("Date", ascending=False)
             .head(3)
-            .sort_values("Date")
         )
 
         st.markdown(f"### Last 3 monthly rows for `{monthly_symbol}`")
