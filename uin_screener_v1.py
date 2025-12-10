@@ -247,8 +247,8 @@ st.caption(
 )
 
 # ─── NEW: KMIALLSHR ≥ 70% summary (Daily/Weekly/Monthly) ───────────────────────
-st.subheader("🧾 KMIALLSHR symbols with UIN ≥ 70% (Daily / Weekly / Monthly)")
-summary_df = build_kmiallshr_70_summary(date_start, date_end, uin_threshold=70.0)
+st.subheader("🧾 KMIALLSHR symbols with UIN ≥ 70% (last 2 days / weeks / months)")
+summary_df = build_kmiallshr_70_summary(uin_threshold=70.0)
 if summary_df.empty:
     st.info("No KMIALLSHR symbols with UIN ≥ 70% in the selected date range across any period.")
 else:
